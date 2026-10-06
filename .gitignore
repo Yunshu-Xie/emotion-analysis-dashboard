@@ -4,3 +4,7 @@ __pycache__/
 venv/
 .env
 uploads/
+tasks.db
+tasks.db-wal
+tasks.db-shm
+.pytest_cache/

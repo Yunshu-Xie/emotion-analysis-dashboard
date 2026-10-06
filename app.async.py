@@ -1,4 +1,5 @@
 # ---------- app_async.py ----------
+import asyncio
 import json
 import logging
 import os
@@ -16,6 +17,7 @@ import analysis
 from analysis import (analyze_data, create_visualizations, extract_video_id,
                        generate_summary, validate_youtube_url)
 from cleanup import cleanup_loop
+from taskstore import TaskStore
 
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
@@ -26,9 +28,8 @@ app.config['CONCURRENCY'] = 10  # 并发请求数
 app.config['MAX_COMMENTS'] = 1000  # 最大评论数
 app.config['TASK_TTL_SECONDS'] = int(os.getenv('TASK_TTL_SECONDS', 6 * 3600))  # 任务/文件保留时长
 
-# 异步处理相关配置
 executor = ThreadPoolExecutor(max_workers=4)
-processing_tasks = {}  # 存储处理任务的Future
+task_store = TaskStore(os.getenv('TASKS_DB_PATH', 'tasks.db'))
 
 # 简易限流：每个IP在窗口期内允许的最大请求数
 RATE_LIMIT_WINDOW_SECONDS = 600
@@ -48,8 +49,6 @@ def _is_rate_limited(ip):
 
 async def process_file_async(filepath, task_id):
     """异步处理文件（稳定增强版）"""
-    import asyncio
-
     results = []
     failed = []
     semaphore = asyncio.Semaphore(app.config['CONCURRENCY'])
@@ -59,7 +58,7 @@ async def process_file_async(filepath, task_id):
             for retry in range(2):
                 try:
                     result = await analysis.async_analyze(line.strip())
-                    if result and result.get('分析'):
+                    if result and not result.get('__error'):
                         return line, result
                     app.logger.warning(f"分析结果异常（重试 {retry+1}）: {line[:50]}...")
                 except Exception as e:
@@ -96,12 +95,12 @@ async def process_file_async(filepath, task_id):
             line, result = await future
             processed += 1
 
-            if result and result.get('分析') and not result['分析'].get('__error', False):
-                results.append({"content": line, "analysis": result['分析']})
+            if result:
+                results.append({"content": line, "analysis": result})
             else:
                 failed.append(line)
 
-            processing_tasks[task_id]['progress'] = processed / total_lines
+            task_store.update_progress(task_id, processed / total_lines)
 
     if not results:
         raise ValueError("分析可能なデータがありません")
@@ -129,7 +128,6 @@ async def process_file_async(filepath, task_id):
 
 
 def run_async_task(task_func, *args):
-    import asyncio
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
@@ -138,15 +136,20 @@ def run_async_task(task_func, *args):
         loop.close()
 
 
+def run_task_and_record(filepath, task_id):
+    """バックグラウンドスレッドで実行し、結果をタスクDBに反映する。"""
+    try:
+        result_path = run_async_task(process_file_async, filepath, task_id)
+        task_store.mark_completed(task_id, result_path)
+    except Exception as e:
+        app.logger.error(f"任务失败 [{task_id}]: {e}")
+        task_store.mark_error(task_id, str(e))
+
+
 def start_processing(task_id, filepath):
-    future = executor.submit(run_async_task, process_file_async, filepath, task_id)
-    processing_tasks[task_id] = {
-        'future': future,
-        'progress': 0.0,
-        'filepath': filepath,
-        'start_time': time.time(),
-        'display_options': request.form.getlist('display_options'),
-    }
+    display_options = request.form.getlist('display_options')
+    task_store.create_task(task_id, filepath, display_options)
+    executor.submit(run_task_and_record, filepath, task_id)
     return jsonify({"status": "processing", "task_id": task_id}), 202
 
 
@@ -212,37 +215,34 @@ def handle_analysis():
 
 @app.route('/status/<task_id>')
 def analysis_status(task_id):
-    task = processing_tasks.get(task_id)
+    task = task_store.get_task(task_id)
     if not task:
         return jsonify({"status": "error", "message": "無効なタスクID"}), 404
 
-    if time.time() - task['start_time'] > 1800:
+    if task['status'] == 'processing' and time.time() - task['created_at'] > 1800:
         return jsonify({"status": "error", "message": "処理タイムアウト"})
 
-    if task['future'].done():
-        try:
-            task['future'].result()
-            return jsonify({
-                "status": "completed",
-                "redirect": url_for('show_result', task_id=task_id),
-            })
-        except Exception as e:
-            return jsonify({"status": "error", "message": f"結果生成失敗: {e}"})
+    if task['status'] == 'completed':
+        return jsonify({
+            "status": "completed",
+            "redirect": url_for('show_result', task_id=task_id),
+        })
+    elif task['status'] == 'error':
+        return jsonify({"status": "error", "message": task['error_message'] or "結果生成失敗"})
     else:
         return jsonify({"status": "processing", "progress": task['progress']})
 
 
 @app.route('/result/<task_id>')
 def show_result(task_id):
-    result_path = f"uploads/{task_id}_result.json"
-    if not os.path.exists(result_path):
+    task = task_store.get_task(task_id)
+    if not task or not task['result_path'] or not os.path.exists(task['result_path']):
         return render_template('error.html', message="结果不存在")
 
-    with open(result_path, encoding='utf-8') as f:
+    with open(task['result_path'], encoding='utf-8') as f:
         data = json.load(f)
 
-    task = processing_tasks.get(task_id, {})
-    display_options = task.get('display_options', [])
+    display_options = task['display_options']
 
     analysis_result = analyze_data(data['results'])
     visualizations = create_visualizations(analysis_result)
@@ -279,7 +279,7 @@ if __name__ == '__main__':
 
     cleanup_thread = threading.Thread(
         target=cleanup_loop,
-        args=(processing_tasks, app.config['UPLOAD_FOLDER'], app.config['TASK_TTL_SECONDS']),
+        args=(task_store, app.config['UPLOAD_FOLDER'], app.config['TASK_TTL_SECONDS']),
         daemon=True,
     )
     cleanup_thread.start()

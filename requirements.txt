@@ -4,3 +4,6 @@ aiohttp==3.9.5
 openai==1.35.10
 youtube-comment-downloader==0.1.76
 requests==2.32.3
+
+# テスト用
+pytest==8.3.2

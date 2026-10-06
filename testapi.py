@@ -3,7 +3,7 @@ import json
 
 import requests
 
-from analysis import ARK_API_URL, MODEL_NAME, parse_ai_json
+from analysis import ANALYSIS_JSON_SCHEMA, ARK_API_URL, MODEL_NAME, parse_ai_json
 
 
 def test_api_response():
@@ -14,21 +14,14 @@ def test_api_response():
         "model": MODEL_NAME,
         "messages": [{
             "role": "user",
-            "content": """严格按以下JSON格式响应：
-{
-  "分析": {
-    "基本感情": "選択肢",
-    "感情詳細": ["标签"],
-    "ネットスラング": ["用語"],
-    "顔文字影響": 数字
-  }
-}
-请分析以下内容：
-テスト用コメント"""
+            "content": "以下のコメントを分析してください：\nテスト用コメント"
         }],
         "temperature": 0.3,
         "max_tokens": 1024,
-        "response_format": {"type": "json_object"}
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": ANALYSIS_JSON_SCHEMA,
+        },
     }
 
     headers = {
