@@ -1,0 +1,759 @@
+{# ---------- templates/upload.html ---------- #}
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>i-Wanna</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        /* 手机端按钮调整 */
+        @media (max-width: 768px) {
+            .advanced-panel {
+                width: 95%;
+            }
+
+            .form-range::-webkit-slider-thumb {
+                width: 20px;
+                height: 20px;
+            }
+
+            .mode-btn {
+                width: 90%;
+                max-width: 300px;
+                padding: 0.9rem;
+                margin: 0 auto;
+                flex: 1;
+            }
+
+            .mode-switcher {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .youtube-input-area {
+                padding: 1rem;
+            }
+
+            #youtubeInput {
+                font-size: 0.9rem;
+            }
+
+            /* 新增表单容器约束 */
+            .input-section {
+                width: 95%;
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            /* 调整文件上传区域 */
+            .file-upload-area {
+                width: 100%;
+                box-sizing: border-box;
+                padding: 1.5rem 1rem;
+            }
+
+            /* 调整文本输入区域 */
+            .text-input-area {
+                width: 100%;
+                box-sizing: border-box;
+                padding: 1rem;
+            }
+
+            /* 调整字符计数器位置 */
+            .char-counter {
+                right: 0.5rem;
+                bottom: 0.5rem;
+            }
+
+            .advanced-section {
+                width: 95%;
+                margin: 0 auto;
+            }
+
+            #toggleAdvanced {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        .youtube-input-area {
+            border: 2px dashed rgba(106,90,205,0.3);
+            border-radius: 15px;
+            padding: 2rem;
+            background: rgba(255,255,255,0.95);
+        }
+        
+        #youtubeInput {
+            border-radius: 25px;
+            padding: 0.8rem 1.5rem;
+            border: 2px solid rgba(106,90,205,0.2);
+            transition: all 0.3s ease;
+        }
+        
+        #youtubeInput:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(106,90,205,0.1);
+        }
+        
+        .url-validation-badge {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.8rem;
+        }
+
+        #toggleAdvanced {
+            display: inline-flex;
+            align-items: center;
+        }
+        #toggleAdvanced:hover {
+            opacity: 0.8;
+            transform: translateX(5px);
+        }
+        #toggleAdvanced[aria-expanded="true"] span:last-child {
+            transform: rotate(180deg);
+        }
+        .advanced-panel {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .advanced-panel .card-body {
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+        }
+
+        .advanced-section {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        /* 底部尾注样式 */
+        footer {
+            position: relative;
+            margin-top: 5rem;
+            padding: 2rem 0;
+            text-align: center;
+            color: #666;
+            isolation: isolate; /* 新建层叠上下文 */
+        }
+
+        /* 全屏背景解决方案 */
+        footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: calc(-50vw + 50%); /* 精准定位公式 */
+            width: 100vw;
+            height: 100%;
+            background: rgba(255,255,255,0.95);
+            box-shadow: 0 -5px 30px rgba(0,0,0,0.03);
+            z-index: -1;
+        }
+
+        .footer-content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            position: relative;
+        }
+
+        body {
+            background: 
+            var(--texture),
+            var(--bg-gradient),
+            linear-gradient(to bottom right, #f8f9fa, #e9ecef);
+            min-height: 100vh;
+        }
+        :root {
+            --primary: #6A5ACD;
+            --secondary: #FF6B6B;
+            --bg-gradient: linear-gradient(135deg, 
+                rgba(106, 90, 205, 0.08) 0%, 
+                rgba(255, 107, 107, 0.08) 100%
+            );
+            --texture: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(255,255,255,0.05) 10px,
+                rgba(255,255,255,0.05) 20px
+            );
+        }
+        .main-header {
+            background: linear-gradient(135deg, rgba(106,90,205,0.1) 0%, rgba(255,107,107,0.1) 100%);
+            padding: 4rem 1rem;
+            margin-bottom: 3rem;
+            text-align: center;
+        }
+
+        .mode-switcher {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .mode-btn {
+            padding: 1rem 2.5rem;
+            border: 2px solid var(--primary);
+            background: white;
+            color: var(--primary);
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .mode-btn.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 5px 15px rgba(106,90,205,0.2);
+        }
+
+        .input-section {
+            display: none;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+
+        .input-section.active {
+            display: block;
+        }
+
+        #fileSection:not(.active) {
+            position: absolute;
+            left: -9999px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .file-upload-area {
+            border: 2px dashed rgba(106,90,205,0.3);
+            border-radius: 15px;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload-area:hover {
+            border-color: var(--primary);
+            background: rgba(106,90,205,0.03);
+        }
+
+        .text-input-area {
+            min-height: 200px;
+            width: 100%;
+            padding: 1.5rem;
+            border: 2px solid rgba(106,90,205,0.2);
+            border-radius: 15px;
+            resize: vertical;
+        }
+
+        .char-counter {
+            position: absolute;
+            right: 1rem;
+            bottom: 1rem;
+            background: rgba(255,255,255,0.9);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* 新增进度条容器定位 */
+        #progressSection {
+            position: relative;
+            z-index: 10000;
+            margin: 20px auto;
+            max-width: 600px;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            position: fixed;
+        }
+
+        .loading-animation {
+            width: 80px;
+            height: 80px;
+            border: 3px solid var(--primary);
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loading">
+        <div class="loading-animation"></div>
+    </div>
+
+    <header class="main-header">
+        <div class="container">
+            <h1 class="display-4 mb-3" style="color: var(--primary);">i-Wanna</h1>
+            <p class="lead" style="color: #666;">
+                抽出→分析→可視化の3段階でSNSデータを解読する次世代AIモデル
+            </p>
+        </div>
+    </header>
+
+    <div class="mode-switcher">
+
+        <button 
+            type="button" 
+            class="mode-btn active"  
+            data-input-type="text"
+            onclick="switchInputType('text')"
+        >
+            ✍️ テキスト分析
+        </button>
+
+        <button 
+            type="button" 
+            class="mode-btn"        
+            data-input-type="file"
+            onclick="switchInputType('file')"
+        >
+            📁 ファイル分析
+        </button>
+
+         <button type="button" class="mode-btn" data-input-type="youtube" onclick="switchInputType('youtube')">
+            ▶️ YouTube分析
+        </button>
+
+    </div>
+
+    <form method="post" action="{{ url_for('handle_analysis') }}" enctype="multipart/form-data">
+        <input type="hidden" name="input_type" id="inputType" value="text">
+        
+        <!-- 文件上传区域 -->
+        <div class="input-section" id="fileSection">
+            <div class="file-upload-area" onclick="document.getElementById('fileInput').click()">
+                <input 
+                    type="file" 
+                    name="file" 
+                    id="fileInput" 
+                    class="d-none" 
+                    accept=".txt"
+                    onchange="handleFileSelect(event)"
+                >
+                <div class="mb-3">
+                    <div class="btn btn-lg btn-primary px-5" style="border-radius: 30px;">
+                        📂 ファイルを選択
+                    </div>
+                </div>
+                <p class="text-muted mb-0" id="fileStatus">
+                    対応形式：.txt（最大1MB）
+                </p>
+            </div>
+        </div>
+
+        <!-- 文本输入区域 -->
+        <div class="input-section active" id="textSection">
+            <div class="position-relative">
+                <textarea 
+                    name="text" 
+                    id="textInput" 
+                    class="text-input-area" 
+                    placeholder="例：
+かわいい〜！この衣装めっちゃ推しに似合ってる😍
+次回はゲスト呼んでほしいな #推し活
+" 
+                    maxlength="1000"
+                ></textarea>
+                <div class="char-counter">
+                    <span id="charCount">0</span>/1000
+                </div>
+            </div>
+        </div>
+
+
+        <!-- YouTube输入区域 -->
+        <div class="input-section" id="youtubeSection">
+            <div class="youtube-input-area">
+                <div class="position-relative">
+                    <input type="url" name="youtube_url" id="youtubeInput" 
+                           class="form-control" 
+                           placeholder="例：https://www.youtube.com/watch?v=動画ID"
+                           pattern="^(https?\:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+">
+                    <div id="urlValidation" class="url-validation-badge"></div>
+                </div>
+                
+                <div class="mt-4">
+                    <label class="form-label">📋 取得オプション</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="sort_by" 
+                               id="sortPopular" value="popular" checked>
+                        <label class="form-check-label" for="sortPopular">
+                            人気コメント順（上位1000件）
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="sort_by" 
+                               id="sortRecent" value="recent">
+                        <label class="form-check-label" for="sortRecent">
+                            最新コメント順（直近1000件）
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <small>
+                        ※ 日本語コメントが多い動画を推奨<br>
+                        ※ 最大1000件まで取得可能<br>
+                        ※ 処理時間は約1〜3分かかります
+                    </small>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- 进阶设置按钮 -->
+        <div class="advanced-section mt-4">
+            <button 
+                type="button" 
+                class="btn btn-link text-decoration-none p-0" 
+                id="toggleAdvanced"
+                data-bs-toggle="collapse" 
+                data-bs-target="#advancedPanel"
+                aria-expanded="false"
+                aria-controls="advancedPanel"
+            >
+                <span class="me-2">⚙️</span>
+                <span class="align-middle">詳細設定</span>
+                <span class="ms-2">▼</span>
+            </button>
+            
+            <div class="advanced-panel collapse mt-3" id="advancedPanel">
+                <div class="card card-body border-0 shadow-sm">
+                    <h5 class="text-secondary mb-3">表示オプション</h5>
+                    <!-- 多选框组件 -->
+                    <div class="d-flex flex-wrap gap-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" 
+                                name="display_options" value="wordcloud" 
+                                id="wordcloudCheck" checked>
+                            <label class="form-check-label" for="wordcloudCheck">
+                                🌈 ワードクラウド
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" 
+                                name="display_options" value="ai_summary" 
+                                id="summaryCheck" checked>
+                            <label class="form-check-label" for="summaryCheck">
+                                📝 AI要約
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" 
+                                name="display_options" value="overview" 
+                                id="overviewCheck" checked>
+                            <label class="form-check-label" for="overviewCheck">
+                                📊 分析概要
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        <div class="text-center mt-4 mb-5">
+            <button 
+                type="submit" 
+                class="btn btn-primary px-5 py-2" 
+                style="font-size: 1.1rem; border-radius: 30px;"
+            >
+                分析を開始 →
+            </button>
+        </div>
+
+        <div id="progressSection" class="mt-4" style="display: none;">
+            <div class="progress" style="height: 25px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                     role="progressbar" style="width: 0%"></div>
+            </div>
+            <p class="text-center mt-2" id="progressText">初期化中...</p>
+        </div>
+
+    </form>
+
+    <script>
+        let youtubeValid = false;
+
+        function showProgressBar() {
+            const progressSection = document.getElementById('progressSection');
+            progressSection.style.display = 'block';
+            progressSection.style.zIndex = '10000'; // 高于全屏加载动画的9999
+            progressSection.style.position = 'relative';
+        }
+
+        document.querySelector('form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(document.querySelector('form'));
+            showProgressBar();
+            document.getElementById('loading').style.display = 'none'; // 隐藏全屏加载动画
+
+            try {
+                // 提交分析请求
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData,
+                    redirect: 'manual' // 禁止自动重定向
+                });
+
+                // 处理不同HTTP状态
+                if (response.status === 202) {
+                    const data = await response.json();
+                    startPolling(data.task_id);
+                } else if (response.status === 302) {
+                    // 手动处理重定向
+                    const redirectUrl = response.headers.get('Location');
+                    startPolling(redirectUrl.split('/status/')[1]);
+                } else {
+                    showError(await response.text());
+                }
+            } catch (err) {
+                console.error(err);
+                showError('ネットワークエラーが発生しました');
+            }
+        });
+
+        // 在startPolling函数中修改进度更新部分
+        function startPolling(taskId) {
+            const poll = async () => {
+                try {
+                    const res = await fetch(`/status/${taskId}`);
+                    const status = await res.json();
+                    
+                    if (status.status === 'processing') {
+                        updateProgress(status.progress * 100); // 转换为百分比
+                        setTimeout(poll, 2000);
+                    } else if (status.status === 'completed') {
+                        window.location.href = status.redirect;
+                    } else {
+                        showError(status.message || '未知のエラー');
+                    }
+                } catch (err) {
+                    showError('ステータス取得失敗');
+                }
+            };
+            poll();
+        }
+
+        function updateProgress(percent) {
+            const bar = document.querySelector('.progress-bar');
+            bar.style.width = `${percent}%`;
+            bar.textContent = `${Math.round(percent)}%`;
+            document.getElementById('progressText').textContent = 
+                `分析中: ${Math.round(percent)}% 完了`;
+        }
+
+        // 错误处理
+        function showError(msg) {
+            document.getElementById('progressSection').style.display = 'none';
+            alert(`エラー: ${msg}`);
+            console.error(msg);
+        }
+
+        // 在现有脚本中添加折叠控制逻辑
+        const toggleButton = document.getElementById('toggleAdvanced');
+        const advancedPanel = document.querySelector('.advanced-panel');
+
+        // 自动调整底部间距
+        function adjustFooterSpacing() {
+            const footer = document.querySelector('footer');
+            const windowHeight = window.innerHeight;
+            const contentHeight = document.body.scrollHeight;
+            
+            if (contentHeight < windowHeight) {
+                footer.style.marginTop = (windowHeight - contentHeight - 100) + 'px';
+            }
+        }
+        window.addEventListener('resize', adjustFooterSpacing);
+        adjustFooterSpacing();
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const advancedPanel = document.getElementById('advancedPanel');
+            const toggleArrow = document.querySelector('#toggleAdvanced span:last-child');
+
+            advancedPanel.addEventListener('shown.bs.collapse', () => {
+                toggleArrow.style.transform = 'rotate(180deg)';
+            });
+            
+            advancedPanel.addEventListener('hidden.bs.collapse', () => {
+                toggleArrow.style.transform = 'rotate(0deg)';
+            });
+        });
+
+        function switchInputType(type) {
+            // 移除所有active状态
+            document.querySelectorAll('.input-section, .mode-btn').forEach(element => {
+                element.classList.remove('active');
+            });
+
+            // 激活目标元素
+            document.getElementById(`${type}Section`).classList.add('active');
+            document.querySelector(`.mode-btn[data-input-type="${type}"]`).classList.add('active');
+
+            // 更新隐藏字段
+            document.getElementById('inputType').value = type;
+
+            if(type === 'youtube') {
+                document.getElementById('youtubeInput').value = '';
+                document.getElementById('urlValidation').textContent = '';
+                youtubeValid = false;
+            }
+
+            // 清除冲突输入
+            const clearActions = {
+                text: () => {
+                    document.getElementById('fileInput').value = '';
+                    document.getElementById('fileStatus').textContent = '対応形式：.txt（最大1MB）';
+                },
+                file: () => {
+                    document.getElementById('textInput').value = '';
+                    document.getElementById('charCount').textContent = '0';
+                }
+            };
+            clearActions[type]();
+        }
+
+        function validateYouTubeUrl() {
+            const input = document.getElementById('youtubeInput');
+            const validationMsg = document.getElementById('urlValidation');
+            
+            if(!input.checkValidity()) {
+                validationMsg.innerHTML = '<span class="text-danger">⚠️ URL形式が不正です</span>';
+                youtubeValid = false;
+                return false;
+            }
+            
+            const videoId = extractYouTubeId(input.value);
+            if(!videoId) {
+                validationMsg.innerHTML = '<span class="text-danger">⚠️ 動画IDを確認してください</span>';
+                youtubeValid = false;
+                return false;
+            }
+            
+            validationMsg.innerHTML = `<span class="text-success">✅ 検出ID: ${videoId}</span>`;
+            youtubeValid = true;
+            return true;
+        }
+
+        function extractYouTubeId(url) {
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length === 11) ? match[2] : null;
+        }
+
+
+
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if(file) {
+                document.getElementById('fileStatus').innerHTML = `
+                    <span class="text-primary">✓</span> 選択ファイル: ${file.name}
+                `;
+            }
+        }
+
+        document.getElementById('textInput').addEventListener('input', function(e) {
+            const count = this.value.length;
+            document.getElementById('charCount').textContent = count;
+            this.style.borderColor = count > 900 ? 'var(--secondary)' : 'rgba(106, 90, 205, 0.2)';
+        });
+
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const currentType = document.getElementById('inputType').value;
+            let isValid = false;
+
+            // YouTube验证优先
+            if(currentType === 'youtube') {
+                if(!validateYouTubeUrl()) {
+                    e.preventDefault();
+                    alert('有効なYouTube URLを入力してください');
+                    return;
+                }
+                isValid = youtubeValid; // 使用专用验证状态
+            }
+            // 文件验证
+            else if(currentType === 'file') {
+                isValid = document.getElementById('fileInput').files.length > 0;
+            }
+            // 文本验证
+            else {
+                isValid = document.getElementById('textInput').value.trim().length > 0;
+            }
+
+            // 统一有效性检查
+            if(!isValid) {
+                e.preventDefault();
+                const messages = {
+                    'youtube': '有効なYouTube URLを入力してください',
+                    'file': '分析用のファイルを選択してください',
+                    'text': '分析用のテキストを入力してください'
+                };
+                alert(messages[currentType]);
+                return;
+            }
+
+            // 进阶选项检查
+            const checkedOptions = document.querySelectorAll('input[name="display_options"]:checked');
+            if(checkedOptions.length === 0) {
+                e.preventDefault();
+                alert('少なくとも1つの表示オプションを選択してください');
+                return;
+            }
+        });
+
+        document.querySelector('form').addEventListener('submit', function(e) {
+        // 确保至少选择一个进阶选项
+        const checkedOptions = document.querySelectorAll('input[name="display_options"]:checked');
+        if(checkedOptions.length === 0) {
+            e.preventDefault();
+            alert('少なくとも1つの表示オプションを選択してください');
+            return;
+        }
+        }); 
+
+        // 实时URL验证
+        document.getElementById('youtubeInput').addEventListener('input', function() {
+            clearTimeout(this.validationTimer);
+            this.validationTimer = setTimeout(() => {
+                validateYouTubeUrl();
+            }, 500);
+        });
+
+    </script>
+</body>
+<footer>
+    <div class="footer-content">
+        <p>i-Wanna<br>
+           Developers: Yunshu XIE, Deng LIU, Junfei GAO<br>
+           © 2025 Octanser Technologies All rights reserved</p>
+    </div>
+</footer>
+</html>

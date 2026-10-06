@@ -1,0 +1,659 @@
+{# ---------- templates/dashboard.html ---------- #}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>分析レポート</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.3/src/wordcloud2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <style>
+
+        html {
+            scroll-behavior: smooth;
+            overflow-x: hidden;
+        }
+
+        .source-badge {
+            background: linear-gradient(135deg, #6A5ACD, #FF6B6B);
+            color: white;
+            padding: 0.5rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            box-shadow: 0 3px 10px rgba(106,90,205,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .source-badge::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, 
+                rgba(255,255,255,0.1) 25%,
+                transparent 25%,
+                transparent 50%,
+                rgba(255,255,255,0.1) 50%,
+                rgba(255,255,255,0.1) 75%,
+                transparent 75%);
+            transform: rotate(45deg);
+            animation: shine 3s infinite;
+        }
+        @keyframes shine {
+            0% { left: -50%; }
+            100% { left: 150%; }
+        }
+
+        .youtube-specific {
+            border-left: 4px solid #FF0000;
+            padding-left: 1rem;
+        }
+        .youtube-metric {
+            background: rgba(255,0,0,0.08) !important;
+        }
+
+
+        
+
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+
+            .source-badge {
+                font-size: 0.8rem;
+                padding: 0.4rem 1rem;
+                margin-bottom: 1rem;
+            }
+
+            .youtube-specific {
+                border-left: none;
+                padding-left: 0;
+                border-top: 2px solid #FF0000;
+                padding-top: 0.5rem;
+            }
+
+            .dashboard-container {
+                margin: 0.5rem auto;
+                padding: 0;
+                width: 98% !important;
+            }
+
+            .viz-card {
+                padding: 1.2rem !important;
+                margin-bottom: 1.2rem;
+                border-radius: 12px;
+                box-shadow: none;
+                border: 1px solid #eee !important;
+            }
+
+            .dashboard-container > .row {
+                margin-bottom: 1.5rem !important;
+            }
+
+            .dashboard-container > .row + .viz-card {
+                margin-top: 2rem !important;
+            }
+
+            /* 文字层级放大 */
+            .chart-title {
+                font-size: 1.4rem !important;
+                margin-bottom: 1.2rem;
+                padding-left: 0;
+                border-left: none;
+            }
+
+            #aiReport {
+                font-size: 1rem !important;
+                line-height: 1.8 !important;
+                padding: 1rem !important;
+                min-height: 240px; /* 保持可读性 */
+                max-height: 50vh;
+                overflow-y: auto; /* 长文滚动 */
+            }
+
+            .dashboard-container > .row { /* 目标行 */
+                margin-bottom: 2rem !important; /* 增加底部间距 */
+            }
+
+            /* 指标徽章垂直排列 */
+            .metric-badge {
+                width: 100%;
+                margin: 0.5rem 0;
+                padding: 0.8rem;
+                font-size: 1rem;
+            }
+
+            /* 评论卡片优化 */
+            .comment-card {
+                padding: 1rem !important;
+            }
+            .comment-card .badge {
+                font-size: 0.9rem !important;
+                padding: 0.5em !important;
+                margin: 0.2rem;
+            }
+
+            /* 图表容器全宽 */
+            .scrollable-chart-container {
+                margin: 0 -1rem;
+                width: 100vw;
+            }
+            #wordcloudContainer {
+                min-height: 70vh !important;
+            }
+
+            /* 按钮放大 */
+            .btn {
+                font-size: 1.1rem !important;
+                padding: 0.8rem 1.5rem !important;
+                border-radius: 12px !important;
+            }
+        }
+
+
+        .viz-card.h-100 {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 1rem !important;  /* 减少内边距 */
+        }
+
+        #sentimentChart, #emotionChart {
+            width: 100% !important;
+            height: 500px !important;
+        }
+
+        .wordcloud-canvas {
+            margin: 0 auto;
+            display: block;
+        }
+
+        .dashboard-container > .row.g-3 {
+            margin-bottom: 0; /* 清除原有底部边距 */
+            margin-top: 1.5rem; /* 添加顶部间距 */
+        }
+
+        .dashboard-container > .row + .viz-card { 
+            margin-top: 3rem !important;  /* 在行与评论卡片之间添加间距 */
+        }
+
+        /* AI Summary */
+       #aiReport {
+            background: linear-gradient(to right, rgba(245, 247, 250, 0.3), rgba(255,255,255,0.5));
+            padding: 1.5rem;
+            border-radius: 15px;
+            border: 1px solid rgba(106, 90, 205, 0.1);
+            font-size: 0.95rem;
+            /* 新增修正属性 */
+            overflow: hidden; /* 清除浮动影响 */
+            line-height: 1.7; /* 统一行高 */
+            font-family: 'Meiryo', sans-serif; /* 强制指定日文字体 */
+            position: relative; /* 为子元素定位提供基准 */
+            text-indent: 0; /* 重置缩进 */
+            white-space: pre-line; /* 仅保留换行符 */
+        }
+
+        #aiReport span.text-primary {
+            text-shadow: 0 2px 4px rgba(106, 90, 205, 0.1);
+        }
+
+        #aiReport span[data-arrow] {
+            display: inline-block;
+            min-width: 1.2em; /* 保持箭头间距 */
+            vertical-align: middle;
+            text-align: center;
+            font-family: 'Segoe UI Symbol', sans-serif; /* 统一箭头字体 */
+            transform: translateY(-0.1em); /* 微调垂直对齐 */
+        }
+
+        /* 新增评论卡片样式 */
+        .comment-card {
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            transition: all 0.2s ease;
+        }
+        .comment-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .comment-meta {
+            font-size: 0.85rem;
+            color: #666;
+        }
+        .analysis-tags span {
+            margin-right: 0.5rem;
+            margin-bottom: 0.3rem;
+        }
+
+        :root {
+            --primary: #6A5ACD;
+            --secondary: #FF6B6B;
+            --dashboard-bg: radial-gradient(
+                circle at 10% 20%,
+                rgba(106, 90, 205, 0.05) 0%,
+                rgba(255, 107, 107, 0.05) 100%
+            );
+            --texture: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(255,255,255,0.05) 10px,
+                rgba(255,255,255,0.05) 20px
+            );
+        }
+
+        body {
+            background: 
+                var(--texture),
+                var(--dashboard-bg),
+                linear-gradient(to bottom right, #f8f9fa, #e9ecef);
+            min-height: 100vh;
+            position: relative;
+        }
+
+        .dynamic-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.3;
+            background: 
+                radial-gradient(var(--primary) 1px, transparent 2px),
+                radial-gradient(var(--secondary) 1px, transparent 2px);
+            background-size: 40px 40px;
+            background-position: 0 0, 20px 20px;
+        }
+
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            position: relative; /* 新增层级控制 */
+            
+            /*
+            contain: strict;
+            will-change: transform;
+            */
+        }
+
+        .viz-card {
+            background: rgba(255, 255, 255, 0.97);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255,255,255,0.3);
+            transition: transform 0.3s ease;
+            
+            overflow: visible !important;
+            
+        }
+
+        .viz-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .chart-title {
+            color: var(--primary);
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            padding-left: 0.5rem;
+            border-left: 4px solid var(--secondary);
+        }
+
+        #wordcloud {
+            width: 100%;
+            height: 500px;
+            border-radius: 15px;
+            background: rgba(245, 247, 250, 0.5);
+        }
+
+        .metric-badge {
+            background: rgba(106, 90, 205, 0.1);
+            color: var(--primary);
+            padding: 0.5rem 1rem;
+            border-radius: 10px;
+            font-weight: 500;
+            margin: 0.5rem;
+        }
+
+        .plotly-chart {
+            background: rgba(255,255,255,0.9);
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        /* 词云容器增强 */
+        #wordcloudContainer {
+            min-height: 200px !important; 
+            height: 30vh; /* 动态高度 */
+            max-height: 300px; /* 防止过大 */
+            position: relative;
+            background: 
+                linear-gradient(45deg, rgba(106,90,205,0.05), rgba(255,107,107,0.05)),
+                rgba(255,255,255,0.9);
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        #wordcloudCanvas {
+            width: 100%!important;
+            height: 100%!important;
+            min-height: 300px;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            image-rendering: pixelated;
+            transform: translateZ(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="dynamic-bg"></div>
+    <div class="dashboard-container">
+
+        <!-- 来源标识 -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <a href="/" class="btn btn-primary" style="border-radius: 20px; padding: 0.5rem 1.5rem;">
+                🏠 ホームに戻る
+            </a>
+            <div class="source-badge">
+                {% if source_type == 'youtube' %}
+                    <i class="fab fa-youtube me-2"></i>YouTube動画分析
+                {% elif source_type == 'file' %}
+                    📁 ファイル分析
+                {% else %}
+                    ✍️ テキスト分析
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- YouTube专属提示 -->
+        {% if source_type == 'youtube' %}
+        <div class="alert youtube-specific">
+            <div class="d-flex align-items-center">
+                <i class="fab fa-youtube me-2 text-danger" style="font-size: 1.5rem;"></i>
+                <div>
+                    <h5 class="mb-1">YouTube分析モード</h5>
+                    <small class="text-muted">
+                        対象動画：{{ video_url|default('URL非表示', true) }}<br>
+                        取得コメント数：{{ analysis.total }}件（最大1000件）
+                    </small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+
+
+        {% if 'overview' in display_options %}
+        <!-- 概览卡片 -->
+            <div class="viz-card">
+                <h4 class="chart-title">📈 分析概要</h4>
+                <div class="d-flex flex-wrap justify-content-center">
+                    <div class="metric-badge">
+                        総コメント数: {{ total }}
+                    </div>
+                    <div class="metric-badge">
+                        ポジティブ率: {{ (analysis.sentiment_counts.get('ポジティブ',0)/total*100)|round(1) }}%
+                    </div>
+                    <div class="metric-badge">
+                        ネット用語数: {{ analysis.slang_freq|length }}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- AI报告与词云并排 -->
+        <div class="row g-3">
+            <!-- AI报告 -->
+            {% if 'ai_summary' in display_options %}
+            <div class="col-md-6">
+                <div class="viz-card h-100" style="padding-bottom: 15px;">  <!-- 新增内边距 -->
+                    <h4 class="chart-title">📝 AI分析レポート</h4>
+                    <div id="aiReport" style="line-height: 1.7; font-family: 'Meiryo', sans-serif;">
+                        {{ ai_summary 
+                            | replace('\u2028', '')   
+                            | replace('\n\n', '\n') 
+                            | trim                   
+                        }}
+                    </div>
+                    <div class="mt-3 text-muted small">
+                        ※ 本レポートはAIが自動生成したもので、実際の状況と異なる場合があります
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 词云 -->
+            {% set show_wordcloud = 'wordcloud' in display_options and analysis.viewpoint_freq|length > 0 %}
+            {% if show_wordcloud %}
+            <div class="col-md-6">
+                <div class="viz-card h-100" style="min-height: 320px;">
+                    <h4 class="chart-title">🌩 評価クラウド</h4>
+                    <div id="wordcloudContainer">
+                        <canvas id="wordcloudCanvas"></canvas>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+
+
+        <!-- 新增评论查看部分 -->
+        <div class="viz-card">
+            <h4 class="chart-title">📜 コメント一覧（{{ comments|length }}件 / 全{{ total }}件）</h4>
+            <button class="btn btn-primary mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#commentSection">
+                コメントを表示/非表示
+            </button>
+            <div class="collapse" id="commentSection">
+                <div class="row">
+                    {% for comment in comments %}
+                    <div class="col-12 mb-2">
+                        <div class="comment-card p-3">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+
+                                    <div class="summary-box mb-2 p-2" 
+                                         style="background: rgba(106,90,205,0.05);border-radius:8px;">
+                                        <span class="text-muted small">📌 要約</span>
+                                        {{ comment.analysis.要約 }}
+                                    </div>
+
+                                    <p class="mb-1">{{ comment.content }}</p>
+                                    <div class="comment-meta analysis-tags">
+                                        <span class="badge bg-primary">{{ comment.analysis.基本感情 }}</span>
+                                        {% for emotion in comment.analysis.感情詳細 %}
+                                        <span class="badge bg-success">{{ emotion }}</span>
+                                        {% endfor %}
+                                        {% if comment.analysis.方言 %}
+                                        <span class="badge bg-info">{{ comment.analysis.方言 }}方言</span>
+                                        {% endif %}
+                                        {% if comment.analysis.文化参照 %}
+                                        <span class="badge bg-warning text-dark">🎌 {{ comment.analysis.文化参照 }}</span>
+                                        {% endif %}
+                                    </div>
+
+
+                                </div>
+                                <div class="text-end ms-3">
+                                    <small class="text-muted d-block">
+                                        礼儀: {{ comment.analysis.礼儀レベル }}
+                                    </small>
+                                    <small class="text-muted">
+                                        意図スコア: {{ comment.analysis.get('潜在意図', 'N/A') }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 清理AI报告内容
+            const aiReport = document.getElementById('aiReport');
+            if(aiReport) {
+                // 获取原始内容
+                let content = aiReport.textContent;
+                
+                // 增强清理逻辑
+                content = content
+                    .replace(/^[\s\u200B\u2028\u2029]+/gm, '') // 清除开头所有空白和特殊字符
+                    .replace(/(\n){2,}/g, '\n') // 合并连续空行
+                    .trim();
+                
+                // 更新内容
+                aiReport.textContent = content;
+            }
+
+            initWordcloud();
+        });
+
+        // YouTube评论点击事件
+        {% if source_type == 'youtube' %}
+        document.querySelectorAll('.comment-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const text = this.querySelector('p').innerText;
+                navigator.clipboard.writeText(text).then(() => {
+                    const badge = this.querySelector('.badge');
+                    const originalText = badge.innerText;
+                    badge.innerText = '✅ コピー済み';
+                    setTimeout(() => {
+                        badge.innerText = originalText;
+                    }, 2000);
+                });
+            });
+        });
+        {% endif %}
+
+        // 更新词云初始化逻辑
+        function initWordcloud() {
+            const rawData = {{ charts.viewpoint_data|tojson|safe }};
+
+            const canvas = document.getElementById('wordcloudCanvas');
+
+            // 视网膜屏适配
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            canvas.style.width = `${rect.width}px`;
+            canvas.style.height = `${rect.height}px`;
+
+            // 调整字体计算基准
+            const baseFontSize = dpr > 1 ? 80 : 60; // 根据DPI调整基础字号
+            const fontSizeMultiplier = baseFontSize * 0.8;
+            const weightFactor = dpr > 1 ? 1.2 : 1;
+
+            
+            // 保持原有配色方案
+            const colorGenerator = () => 
+                `hsl(${200 + Math.random()*150}deg, 70%, 45%)`;
+
+            // 动态调整字体大小
+            const maxFreq = Math.max(...rawData.map(d => d.value)) || 1;
+            const minFreq = Math.min(...rawData.map(d => d.value)) || 1;
+
+            // 调整字号控制参数（原为 *100）
+            // const fontSizeMultiplier = 50; // 缩小为原来的一半
+            // const weightFactor = 0.6;      // 新增缩放因子
+
+            const validData = rawData
+                .filter(item => item.text && item.value > 0)
+                .map(item => [
+                    item.text, 
+                    // 调整字号计算公式（添加平滑处理）
+                    Math.pow(item.value / maxFreq, 0.75) * fontSizeMultiplier
+                ]);
+
+
+            // 渲染词云
+            window.wordcloudInstance = WordCloud(canvas, {
+                list: validData,
+                color: () => `hsl(${200 + Math.random()*150}deg, 70%, 45%)`,
+                backgroundColor: "rgba(255,255,255,0.01)",
+                gridSize: Math.round(14 * (rect.width / 1000) * dpr),
+                weightFactor: weightFactor,
+                fontFamily: 'Meiryo, Arial',
+                minFontSize: 12 * dpr,
+                maxFontSize: 60 * dpr,
+                rotateRatio: 0.1,
+                shape: 'circle',
+                ellipticity: 0.6,
+                drawOutOfBound: false,
+                shrinkToFit: true  // 新增自适应收缩
+            });
+            
+            // 添加点击交互
+            canvas.addEventListener('click', function(e) {
+                const words = window.wordcloudInstance.getRenderedWords();
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                const clickedWord = words.find(word => word.hitTest(x, y));
+                if(clickedWord) {
+                    const relatedComments = {{ comments|tojson|safe }}
+                        .filter(c => c.analysis.核心视点.includes(clickedWord.text));
+                    
+                    showWordContext(clickedWord.text, relatedComments);
+                }
+            });
+            
+            // 显示上下文功能
+            function showWordContext(word, comments) {
+                const modalHtml = `
+                    <div class="modal fade">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">「${word}」関連コメント</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            ${comments.slice(0,10).map(c => `
+                                <div class="mb-2 p-2 border-bottom">
+                                    <small class="text-muted">${c.analysis.基本感情}</small>
+                                    <div>${c.content}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        </div>
+                    </div>
+                    </div>
+                `;
+                
+                const modal = new bootstrap.Modal(document.createElement('div'));
+                modal._element.innerHTML = modalHtml;
+                modal.show();
+            }
+
+            // 优化重绘逻辑
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    canvas.width = canvas.offsetWidth * dpr;
+                    canvas.height = canvas.offsetHeight * dpr;
+                    initWordcloud();
+                }, 200);
+            });
+        }
+        
+    </script>
+</body>
+</html>
