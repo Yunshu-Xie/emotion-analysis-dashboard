@@ -1,7 +1,6 @@
 # 可视化分析系统 requirements.txt
-streamlit==1.22.0
-plotly==5.15.0
-pandas==2.0.3
-python-wordcloud==1.8.2.2
-jieba==0.42.1
-matplotlib==3.7.2
+flask==3.0.3
+aiohttp==3.9.5
+openai==1.35.10
+youtube-comment-downloader==0.1.76
+requests==2.32.3
