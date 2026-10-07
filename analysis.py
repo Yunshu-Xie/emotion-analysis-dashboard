@@ -209,11 +209,14 @@ def analyze_data(data):
             'sentiment_counts': {'ポジティブ': 0, '中立': 0, 'ネガティブ': 0},
             'emotion_freq': defaultdict(int),
             'viewpoint_freq': defaultdict(int),
+            'avg_intent_score': 0,
         }
 
+    intent_total = 0
     for entry in data:
         entry_analysis = entry['analysis']
         analysis['sentiment_counts'][entry_analysis.get('基本感情', '')] += 1
+        intent_total += entry_analysis.get('潜在意図', 0)
 
         for emotion in entry_analysis.get('感情詳細', []):
             if emotion and str(emotion).strip():
@@ -229,18 +232,26 @@ def analyze_data(data):
     if not analysis['emotion_freq']:
         analysis['emotion_freq']['（データなし）'] = 0
 
+    analysis['avg_intent_score'] = round(intent_total / analysis['total'], 1)
+
     return analysis
 
 
 def create_visualizations(analysis):
-    """観点ワードクラウド用データを生成する。"""
+    """ワードクラウドと感情ランキングバーの描画用データを生成する。"""
     viewpoint_items = sorted(
         analysis['viewpoint_freq'].items(),
         key=lambda x: -x[1]
     )[:100]
 
+    emotion_items = sorted(
+        analysis['emotion_freq'].items(),
+        key=lambda x: -x[1]
+    )[:8]
+
     return {
-        'viewpoint_data': [{'text': k, 'value': v} for k, v in viewpoint_items]
+        'viewpoint_data': [{'text': k, 'value': v} for k, v in viewpoint_items],
+        'emotion_data': [{'text': k, 'value': v} for k, v in emotion_items],
     }
 
 

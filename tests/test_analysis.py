@@ -47,13 +47,14 @@ def test_extract_video_id_returns_none_for_invalid_id_length():
     assert extract_video_id("https://www.youtube.com/watch?v=short") is None
 
 
-def _entry(sentiment, emotions=None, keywords=None):
+def _entry(sentiment, emotions=None, keywords=None, intent_score=0):
     return {
         "content": "テストコメント",
         "analysis": {
             "基本感情": sentiment,
             "感情詳細": emotions or [],
             "核心視点": keywords or [],
+            "潜在意図": intent_score,
         },
     }
 
@@ -80,6 +81,16 @@ def test_analyze_data_counts_sentiment_and_keywords():
     assert result['viewpoint_freq']['編集'] == 1
 
 
+def test_analyze_data_computes_average_intent_score():
+    data = [
+        _entry("ポジティブ", intent_score=10),
+        _entry("ポジティブ", intent_score=20),
+        _entry("ネガティブ", intent_score=0),
+    ]
+    result = analyze_data(data)
+    assert result['avg_intent_score'] == 10.0
+
+
 def test_create_visualizations_sorts_by_frequency_desc():
     data = [
         _entry("ポジティブ", keywords=["A"]),
@@ -91,3 +102,17 @@ def test_create_visualizations_sorts_by_frequency_desc():
 
     assert viz['viewpoint_data'][0] == {'text': 'A', 'value': 2}
     assert viz['viewpoint_data'][1] == {'text': 'B', 'value': 1}
+
+
+def test_create_visualizations_ranks_top_emotions_and_caps_at_eight():
+    data = []
+    for i in range(10):
+        # 10種類の感情タグを作り、出現回数が降順になるようにする
+        data.append(_entry("ポジティブ", emotions=[f"emo{j}" for j in range(i, 10)]))
+
+    analysis_result = analyze_data(data)
+    viz = create_visualizations(analysis_result)
+
+    assert len(viz['emotion_data']) == 8
+    values = [item['value'] for item in viz['emotion_data']]
+    assert values == sorted(values, reverse=True)
